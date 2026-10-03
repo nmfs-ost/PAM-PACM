@@ -10,7 +10,7 @@ makara_connect <- function () {
 }
 
 targets_makara <- list(
-  tar_target(makara_exclude_organizations, c("DFO", "JASCO", "CORNELL", "ORSTED")),
+  tar_target(makara_exclude_organizations, c("DFO", "JASCO", "CORNELL", "ORSTED", "MEDMR")),
   tar_target(makara_db, {
     con <- makara_connect()
 
