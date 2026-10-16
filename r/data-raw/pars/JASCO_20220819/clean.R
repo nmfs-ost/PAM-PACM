@@ -50,7 +50,11 @@ detections |>
   anti_join(metadata, by = c("UNIQUE_ID" = "UNIQUE_ID"))
 
 detections <- detections |> 
-  semi_join(metadata, by = c("UNIQUE_ID" = "UNIQUE_ID"))
+  semi_join(metadata, by = c("UNIQUE_ID" = "UNIQUE_ID")) |> 
+  mutate(
+    DETECTION_METHOD = "JASCO_CONTOUR_CLICK"
+  )
+tabyl(detections, DETECTION_METHOD)
 
 stopifnot(all(detections$UNIQUE_ID %in% metadata$UNIQUE_ID))
 

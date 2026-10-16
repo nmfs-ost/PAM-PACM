@@ -9,6 +9,7 @@ metadata <- read_csv(file.path(dir, "raw/metadata.csv"), col_types = cols(.defau
 detectiondata <- read_csv(file.path(dir, "raw/detectiondata.csv"), col_types = cols(.default = col_character()), na = c("N/A", "NA", "")) |> 
   mutate(
     across(everything(), ~iconv(., from = "UTF-8", to = "UTF-8", sub = "")),
+    analysis_detector_code = str_replace(analysis_detector_code, "JASCO_AA", "JASCO_CONTOUR_CLICK")
   )
 
 tabyl(detectiondata, "analysis_detector_code")

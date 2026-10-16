@@ -52,7 +52,7 @@ stopifnot(
 convert_legacy_submission(
   dir,
   metadata = metadata,
-  detectiondata = detections,
+  # detectiondata = detections, # REPLACED by JASCO_20261008 detectiondata
   organization_code = "JASCO",
   project_funding = NA_character_
 )

@@ -12,7 +12,8 @@ detectiondata <- read_csv(file.path(dir, "raw/detectiondata.csv"), col_types = c
     analysis_detector_code = case_when(
       deployment_code == "EMBD-2016-09-8" & analysis_sound_source_codes == "BLWH" & analysis_detector_code == "JASCO_AA, LFDCS" ~ "LFDCS",
       TRUE ~ analysis_detector_code
-    )
+    ),
+    analysis_detector_code = str_replace(analysis_detector_code, "JASCO_AA", "JASCO_CONTOUR_CLICK")
   )
 
 tabyl(detectiondata, analysis_sound_source_codes, analysis_detector_code)
