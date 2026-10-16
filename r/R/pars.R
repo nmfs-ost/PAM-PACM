@@ -196,7 +196,19 @@ targets_pars <- list(
   # analysis keys, so its output is one row per (analysis, submission) and only
   # needs resolving. the cross-organization guard lives in there too
   tar_target(pars_analyses_resolved, {
-    x <- pars_analyses_table(pars_detectiondata, pars_deployments)
+    # interpolate detection positions only from the gpsdata of the submission
+    # that won track supersession. pooling every submission's fixes for one
+    # deployment would interleave two versions of the track
+    gpsdata <- NULL
+    if (!is.null(pars_gpsdata) && !is.null(pars_tracks)) {
+      gpsdata <- pars_gpsdata |>
+        semi_join(
+          st_drop_geometry(pars_tracks),
+          by = c("submission_id", "deployment_code")
+        )
+    }
+
+    x <- pars_analyses_table(pars_detectiondata, pars_deployments, gpsdata)
 
     stopifnot(all(!is.na(x$deployment_id)))
 

@@ -118,7 +118,9 @@ fixture_snapshot <- function() {
 test_codes <- function() {
   list(
     organizations = c("SYRACUSE", "NEFSC"),
-    platform_types = c("BOTTOM_MOUNTED_MOORING", "ELECTRIC_GLIDER"),
+    platform_types = c(
+      "BOTTOM_MOUNTED_MOORING", "MOORED_SURFACE_BUOY", "ELECTRIC_GLIDER"
+    ),
     device_types = c("SOUNDTRAP", "AMAR"),
     detectors = c(
       "LFDCS", "MANUAL", "OTHER", "JASCO_CONTOUR_CLICK", "JASCO_PAMLAB", "RPS",

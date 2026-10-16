@@ -44,7 +44,7 @@ export_analyses_table <- function (analyses) {
 }
 
 # detections: one row per (analysis, day). Unnest the per-analysis `detections`
-# and flatten each day's `locations` (<=1 mobile localization per day) into
+# and flatten each day's `locations` (<=1 mobile platform position per day) into
 # latitude/longitude columns - blank for stationary days. submission_id rides in
 # from the parent analysis.
 export_detections_table <- function (analyses) {

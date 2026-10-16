@@ -240,15 +240,14 @@ targets_pacm <- list(
         detection_method = iconv(detection_method, "UTF-8", "UTF-8", sub = ""),
         detection_method = toupper(detection_method),
         detection_method = case_when(
-          str_detect(detection_method, "JASCO") ~ "JASCO",
-          detection_method == "AUTOMATIC AND MANUAL" ~ "AUTOMATIC/MANUAL",
-          detection_method == "CUSTOM AUTOMATIC DETECTOR" ~ "AUTOMATIC",
-          str_starts(detection_method, "PAMGUARD WHISTLE") ~ "PAMGUARD",
-          detection_method == "PAMLAB, MANUAL" ~ "PAMLAB/MANUAL",
-          detection_method == "PAMGUARD,MANUAL" ~ "PAMGUARD/MANUAL",
-          str_detect(detection_method, "RPS CONTOUR AND CLICK DETECTORS") ~ "RPS",
-          str_detect(detection_method, "MATLAB-BASED AUTOMATED DETECTOR ALGORITHM") ~ "MATLAB",
-          str_detect(detection_method, "MATCHED-FILTER DATA-TEMPLATE DETECTION ALGORITHM") ~ "MATCHED_FILTER",
+          # detection_method == "AUTOMATIC AND MANUAL" ~ "AUTOMATIC,MANUAL",
+          # detection_method == "CUSTOM AUTOMATIC DETECTOR" ~ "AUTOMATIC",
+          # str_starts(detection_method, "PAMGUARD WHISTLE") ~ "PAMGUARD_WHISTLE_MOAN",
+          # detection_method == "PAMLAB, MANUAL" ~ "PAMLAB,MANUAL",
+          # detection_method == "PAMGUARD,MANUAL" ~ "PAMGUARD,MANUAL",
+          # str_detect(detection_method, "RPS CONTOUR AND CLICK DETECTORS") ~ "RPS",
+          # str_detect(detection_method, "MATLAB-BASED AUTOMATED DETECTOR ALGORITHM") ~ "MATLAB",
+          # str_detect(detection_method, "MATCHED-FILTER DATA-TEMPLATE DETECTION ALGORITHM") ~ "MATCHED_FILTER",
           TRUE ~ detection_method
         ),
         detections = map(detections, function (x) {

@@ -47,7 +47,6 @@ PARS_LEGACY_OPTIONAL <- c(
   # a towed cruise has no site in the moored sense, and the hydrophone model
   # occupies recording_device_type_code, leaving no separate device identifier
   "deployment_water_depth_m",
-  "recording_device_depth_m",
   "recording_bit_depth",
   "recording_n_channels",
   "recording_device_code",
@@ -81,7 +80,7 @@ PARS_REQUIRED <- list(
     "site_code", "monitoring_start_datetime", "monitoring_end_datetime",
     "deployment_latitude", "deployment_longitude",
     "deployment_platform_type_code", "deployment_water_depth_m",
-    "recording_device_depth_m", "recording_device_code",
+    "recording_device_code",
     "recording_device_type_code", "recording_duration_secs",
     "recording_interval_secs", "recording_sample_rate_khz",
     "recording_bit_depth", "recording_n_channels", "recording_timezone",
@@ -173,27 +172,42 @@ PARS_RANGE_RULES <- list(
   )
 )
 
-# fields required only when the row reports a detection. the species and call
-# type are real information legacy always recorded, so they hold under both
-# profiles; a validated *count* was frequently not recorded (50,077 of 57,301
-# legacy detections lack it) and is never published, so its conditional rule is
-# relaxed under PARS_LEGACY - a presence relaxation
-PARS_CONDITIONAL_RULES <- c(
-  detection_sound_source_code_required = paste(
-    "!(detection_result_code %in% c('DETECTED', 'POSSIBLY_DETECTED'))",
-    "| !is.na(detection_sound_source_code)"
-  ),
-  detection_call_type_code_required = paste(
-    "!(detection_result_code %in% c('DETECTED', 'POSSIBLY_DETECTED'))",
-    "| !is.na(detection_call_type_code)"
+# fields required only when another field on the same row has a given value.
+# the species and call type are real information legacy always recorded, so
+# they hold under both profiles
+PARS_CONDITIONAL_RULES <- list(
+  detectiondata = c(
+    detection_sound_source_code_required = paste(
+      "!(detection_result_code %in% c('DETECTED', 'POSSIBLY_DETECTED'))",
+      "| !is.na(detection_sound_source_code)"
+    ),
+    detection_call_type_code_required = paste(
+      "!(detection_result_code %in% c('DETECTED', 'POSSIBLY_DETECTED'))",
+      "| !is.na(detection_call_type_code)"
+    )
   )
 )
 
-# conditional rules that apply only to strict PARS_1.0 submissions
-PARS_STRICT_CONDITIONAL_RULES <- c(
-  detection_n_validated_required = paste(
-    "!(detection_result_code %in% c('DETECTED', 'POSSIBLY_DETECTED'))",
-    "| !is.na(detection_n_validated)"
+# conditional rules that apply only to strict PARS_1.0 submissions. leaving a
+# rule out of PARS_LEGACY is a presence relaxation
+PARS_STRICT_CONDITIONAL_RULES <- list(
+  metadata = c(
+    # a moored device has a fixed depth; a glider, drifter or towed array does
+    # not (JASCO_20261013 is a PARS_1.0 electric glider with no device depth).
+    # not applied to PARS_LEGACY: the towed surveys never collected it, and the
+    # GARDLINE MAKARA_1.2 moored surface buoys were submitted without it
+    recording_device_depth_m_required = paste(
+      "!(deployment_platform_type_code %in% c('BOTTOM_MOUNTED_MOORING', 'MOORED_SURFACE_BUOY'))",
+      "| !is.na(recording_device_depth_m)"
+    )
+  ),
+  detectiondata = c(
+    # a validated count was frequently not recorded in legacy (50,077 of 57,301
+    # legacy detections lack it) and is never published
+    detection_n_validated_required = paste(
+      "!(detection_result_code %in% c('DETECTED', 'POSSIBLY_DETECTED'))",
+      "| !is.na(detection_n_validated)"
+    )
   )
 )
 
@@ -235,12 +249,14 @@ pars_rules <- function (table, profile = "PARS_1.0", columns = NULL) {
     paste0(required, "_present")
   )
 
-  expressions <- c(presence, PARS_RANGE_RULES[[table]])
-  if (table == "detectiondata") {
-    expressions <- c(expressions, PARS_CONDITIONAL_RULES)
-    if (profile == "PARS_1.0") {
-      expressions <- c(expressions, PARS_STRICT_CONDITIONAL_RULES)
-    }
+  # a table with no conditional rules gives NULL, which c() ignores
+  expressions <- c(
+    presence,
+    PARS_RANGE_RULES[[table]],
+    PARS_CONDITIONAL_RULES[[table]]
+  )
+  if (profile == "PARS_1.0") {
+    expressions <- c(expressions, PARS_STRICT_CONDITIONAL_RULES[[table]])
   }
 
   if (!is.null(columns)) {

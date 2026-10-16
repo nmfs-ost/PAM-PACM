@@ -197,6 +197,48 @@ PARS_ANALYSIS_KEYS <- c(
   "analysis_citations", "analysis_detector_code", "analysis_detector_version"
 )
 
+# add detection_latitude/detection_longitude: the platform position at each
+# detection_start_datetime, linearly interpolated from the deployment's gpsdata.
+# this is where the recorder was, not the localization_* position of the animal.
+#
+# rule = 2 holds the first/last fix outside the track's time range. daily rows
+# start at 00:00, so a cruise's first day usually starts before its first fix;
+# rule = 1 would drop the position of that whole day. makara_detections_mobile
+# uses the same rule.
+#
+# deployments without gpsdata (stationary), or with fewer than two distinct
+# fixes (approxfun needs two), get NA
+pars_detection_positions <- function (detectiondata, gpsdata) {
+  detectiondata$detection_latitude <- NA_real_
+  detectiondata$detection_longitude <- NA_real_
+
+  if (is.null(gpsdata) || nrow(gpsdata) == 0) {
+    return(detectiondata)
+  }
+
+  gpsdata <- gpsdata |>
+    filter(!is.na(datetime), !is.na(latitude), !is.na(longitude)) |>
+    arrange(deployment_code, datetime)
+
+  for (code in unique(gpsdata$deployment_code)) {
+    track <- gpsdata |>
+      filter(deployment_code == code) |>
+      # approxfun collapses tied x values; keep the first fix at each time
+      distinct(datetime, .keep_all = TRUE)
+    if (nrow(track) < 2) next
+
+    lat <- approxfun(track$datetime, track$latitude, rule = 2)
+    lon <- approxfun(track$datetime, track$longitude, rule = 2)
+
+    i <- which(detectiondata$deployment_code == code)
+    start <- detectiondata$detection_start_datetime[i]
+    detectiondata$detection_latitude[i] <- lat(start)
+    detectiondata$detection_longitude[i] <- lon(start)
+  }
+
+  detectiondata
+}
+
 # collapse a day's detection rows to a single presence value
 pars_daily_presence <- function (detections) {
   detections |>
@@ -212,16 +254,26 @@ pars_daily_presence <- function (detections) {
           TRUE ~ "na"
         )
       }),
+      # one location per day: the platform position at the day's earliest
+      # DETECTED row, or the earliest POSSIBLY_DETECTED row if the day has no
+      # DETECTED rows. NOT_DETECTED and NOT_AVAILABLE days get no location
       locations = map(rows, function (rows) {
         located <- rows |>
-          filter(!is.na(localization_latitude) & !is.na(localization_longitude))
+          filter(!is.na(detection_latitude) & !is.na(detection_longitude))
+        if (any(located$detection_result_code == "DETECTED")) {
+          located <- filter(located, detection_result_code == "DETECTED")
+        } else {
+          located <- filter(located, detection_result_code == "POSSIBLY_DETECTED")
+        }
         if (nrow(located) == 0) return(NULL)
         located |>
+          arrange(detection_start_datetime) |>
+          slice_head(n = 1) |>
           transmute(
             analysis_period_start_datetime = detection_start_datetime,
             analysis_period_end_datetime = detection_end_datetime,
-            latitude = localization_latitude,
-            longitude = localization_longitude
+            latitude = detection_latitude,
+            longitude = detection_longitude
           )
       })
     ) |>
@@ -229,10 +281,11 @@ pars_daily_presence <- function (detections) {
     arrange(date)
 }
 
-pars_analyses_table <- function (detectiondata, deployments) {
+pars_analyses_table <- function (detectiondata, deployments, gpsdata = NULL) {
   keys <- intersect(PARS_ANALYSIS_KEYS, names(detectiondata))
 
   detectiondata |>
+    pars_detection_positions(gpsdata) |>
     pars_expand_species() |>
     nest(detections = -all_of(c(keys, "species"))) |>
     left_join(

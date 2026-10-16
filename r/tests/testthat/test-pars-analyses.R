@@ -295,17 +295,120 @@ test_that("locations stay empty when no localization is submitted", {
   expect_true(is.null(daily(a)$locations[[1]]))
 })
 
-test_that("localization coordinates are nested into locations", {
+gps_rows <- function(code = "D1") {
+  tibble(
+    submission_id = "SUB1",
+    deployment_code = code,
+    datetime = parse_pars_datetime(c(
+      "2025-04-25T00:00:00Z", "2025-04-25T02:00:00Z"
+    )),
+    latitude = c(40, 42),
+    longitude = c(-70, -68)
+  )
+}
+
+test_that("localization coordinates are not used as locations", {
   a <- pars_analyses_table(
     detection_row(localization_latitude = 41.2, localization_longitude = -70.5),
     analysis_deployments()
   )
 
+  expect_true(is.null(daily(a)$locations[[1]]))
+})
+
+test_that("platform position is interpolated from gpsdata at detection start", {
+  a <- pars_analyses_table(
+    detection_row(
+      detection_start_datetime = parse_pars_datetime("2025-04-25T01:00:00Z"),
+      localization_latitude = 30,
+      localization_longitude = -60
+    ),
+    analysis_deployments(),
+    gps_rows()
+  )
+
   locations <- daily(a)$locations[[1]]
 
   expect_equal(nrow(locations), 1)
-  expect_equal(locations$latitude, 41.2)
-  expect_equal(locations$longitude, -70.5)
+  expect_equal(locations$latitude, 41)
+  expect_equal(locations$longitude, -69)
+})
+
+test_that("locations keep only the first position of the day", {
+  rows <- bind_rows(
+    detection_row(
+      detection_start_datetime = parse_pars_datetime("2025-04-25T02:00:00Z")
+    ),
+    detection_row(
+      detection_start_datetime = parse_pars_datetime("2025-04-25T01:00:00Z")
+    )
+  )
+  a <- pars_analyses_table(rows, analysis_deployments(), gps_rows())
+
+  locations <- daily(a)$locations[[1]]
+
+  expect_equal(nrow(locations), 1)
+  expect_equal(
+    locations$analysis_period_start_datetime,
+    parse_pars_datetime("2025-04-25T01:00:00Z")
+  )
+  expect_equal(locations$latitude, 41)
+})
+
+test_that("locations prefer DETECTED, then POSSIBLY_DETECTED", {
+  rows <- bind_rows(
+    detection_row(
+      detection_start_datetime = parse_pars_datetime("2025-04-25T00:00:00Z"),
+      detection_result_code = "NOT_DETECTED"
+    ),
+    detection_row(
+      detection_start_datetime = parse_pars_datetime("2025-04-25T01:00:00Z"),
+      detection_result_code = "POSSIBLY_DETECTED"
+    ),
+    detection_row(
+      detection_start_datetime = parse_pars_datetime("2025-04-25T02:00:00Z"),
+      detection_result_code = "DETECTED"
+    )
+  )
+
+  a <- pars_analyses_table(rows, analysis_deployments(), gps_rows())
+  expect_equal(daily(a)$locations[[1]]$latitude, 42)
+
+  a <- pars_analyses_table(rows[1:2, ], analysis_deployments(), gps_rows())
+  expect_equal(daily(a)$locations[[1]]$latitude, 41)
+})
+
+test_that("NOT_DETECTED and NOT_AVAILABLE days have no location", {
+  rows <- bind_rows(
+    detection_row(detection_result_code = "NOT_DETECTED"),
+    detection_row(detection_result_code = "NOT_AVAILABLE")
+  )
+  a <- pars_analyses_table(rows, analysis_deployments(), gps_rows())
+
+  expect_true(is.null(daily(a)$locations[[1]]))
+})
+
+test_that("a detection outside the gps time range takes the nearest fix", {
+  a <- pars_analyses_table(
+    detection_row(
+      detection_start_datetime = parse_pars_datetime("2025-04-25T05:00:00Z")
+    ),
+    analysis_deployments(),
+    gps_rows()
+  )
+
+  locations <- daily(a)$locations[[1]]
+
+  expect_equal(locations$latitude, 42)
+  expect_equal(locations$longitude, -68)
+})
+
+test_that("gpsdata of another deployment gives no location", {
+  a <- pars_analyses_table(
+    detection_row(), analysis_deployments(), gps_rows(code = "OTHER")
+  )
+
+  expect_true(is.null(daily(a)$locations[[1]]))
 })
 
 # the plan's hand-built reconciliation fixture --------------------------------

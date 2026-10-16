@@ -146,6 +146,52 @@ test_that("PARS_LEGACY still requires a species and call type on a DETECTED row"
   expect_true(any(grepl("detection_call_type_code", errors$name)))
 })
 
+test_that("PARS_1.0 requires a device depth on a bottom-mounted mooring", {
+  x <- valid_metadata(
+    deployment_platform_type_code = "BOTTOM_MOUNTED_MOORING",
+    recording_device_depth_m = NA_real_
+  )
+
+  errors <- validate_pars(x, "metadata", test_codes(), profile = "PARS_1.0")
+
+  expect_equal(errors$name, "recording_device_depth_m_required")
+})
+
+test_that("PARS_1.0 requires a device depth on a moored surface buoy", {
+  x <- valid_metadata(
+    deployment_platform_type_code = "MOORED_SURFACE_BUOY",
+    recording_device_depth_m = NA_real_
+  )
+
+  errors <- validate_pars(x, "metadata", test_codes(), profile = "PARS_1.0")
+
+  expect_equal(errors$name, "recording_device_depth_m_required")
+})
+
+test_that("PARS_1.0 allows a glider with no device depth", {
+  # JASCO_20261013: a glider has no fixed device depth
+  x <- valid_metadata(
+    deployment_platform_type_code = "ELECTRIC_GLIDER",
+    recording_device_depth_m = NA_real_
+  )
+
+  errors <- validate_pars(x, "metadata", test_codes(), profile = "PARS_1.0")
+
+  expect_equal(nrow(errors), 0)
+})
+
+test_that("PARS_LEGACY allows a moored surface buoy with no device depth", {
+  # GARDLINE_20250815 and GARDLINE_20250915 were submitted without it
+  x <- valid_metadata(
+    deployment_platform_type_code = "MOORED_SURFACE_BUOY",
+    recording_device_depth_m = NA_real_
+  )
+
+  errors <- validate_pars(x, "metadata", test_codes(), profile = "PARS_LEGACY")
+
+  expect_equal(nrow(errors), 0)
+})
+
 # profiles --------------------------------------------------------------------
 
 test_that("PARS_1.0 allows project_funding", {
@@ -243,7 +289,7 @@ test_that("validation of an empty table returns no errors rather than crashing",
 # presence-only - the range rules below prove it
 
 TOWED_RELAXED_METADATA <- c(
-  "deployment_water_depth_m", "recording_device_depth_m", "recording_bit_depth",
+  "deployment_water_depth_m", "recording_bit_depth",
   "recording_n_channels", "recording_device_code", "site_code",
   # the sheet's "project" column holds the cruise code, not a project name, and
   # duty cycle is recorded as the word "continuous" rather than a number
